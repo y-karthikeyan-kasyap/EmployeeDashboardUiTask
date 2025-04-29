@@ -17,7 +17,7 @@ namespace EmployeeDashboard.Controllers
         // Index action with pagination
         public IActionResult Index(string search, string filterDept, string sortColumn, string sortOrder, int page = 1)
         {
-            // Change page size from 1 to 4 employees per page
+           
             int pageSize = 4;
             var employees = _context.Employees.AsQueryable();
 
@@ -35,7 +35,7 @@ namespace EmployeeDashboard.Controllers
                 ViewBag.FilterDept = filterDept;
             }
 
-            // Sorting - Keep default sort but no forced filters
+            // Sorting 
             if (string.IsNullOrEmpty(sortColumn))
             {
                 sortColumn = "Name"; // default sort by Name
@@ -45,7 +45,7 @@ namespace EmployeeDashboard.Controllers
                 sortOrder = "asc"; // default to ascending order
             }
 
-            // Sort logic remains the same
+            
             if (sortOrder == "asc")
             {
                 employees = sortColumn switch
@@ -65,29 +65,29 @@ namespace EmployeeDashboard.Controllers
                 };
             }
 
-            // Store sort information for view
+            // sort information for view
             ViewBag.SortColumn = sortColumn;
             ViewBag.SortOrder = sortOrder;
 
-            // Get the total count BEFORE pagination
+            // total count of employees.
             int totalEmployees = employees.Count();
 
-            // Calculate total pages
+            // total pages
             int totalPages = (int)Math.Ceiling(totalEmployees / (double)pageSize);
 
-            // Ensure page is within valid range
+            // to Ensure that page is within valid range
             if (page < 1) page = 1;
             if (page > totalPages && totalPages > 0) page = totalPages;
 
-            // Get the data for the current page
+            // to Get the data for the current page to display in view
             var paginatedEmployees = employees.Skip((page - 1) * pageSize).Take(pageSize).ToList();
 
-            // Pass pagination info to the view
+            // Passing the pagination info to the view for display
             ViewBag.TotalPages = totalPages;
             ViewBag.Page = page;
             ViewBag.TotalEmployees = totalEmployees;
 
-            // Get departments for filtering
+            // departments for filtering
             ViewBag.Departments = _context.Employees.Select(e => e.Department).Distinct().ToList();
 
             return View(paginatedEmployees);
