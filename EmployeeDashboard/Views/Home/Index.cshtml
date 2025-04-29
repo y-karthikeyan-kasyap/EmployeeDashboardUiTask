@@ -1,0 +1,346 @@
+﻿@model IEnumerable<EmployeeDashboard.Models.Employee>
+@{
+    ViewData["Title"] = "Employee Dashboard";
+}
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+</head>
+
+<style>
+    body {
+        background-image: linear-gradient(#30cfd0, #330867);
+        font-family: 'Arial', sans-serif;
+    }
+
+    .head-color {
+        color: whitesmoke;
+    }
+
+    .table-container {
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .table thead {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        border: none;
+    }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+
+    .btn-sort {
+        background-color: #6c757d;
+        color: white;
+        margin: 2px;
+    }
+
+        .btn-sort.active {
+            background-color: #28a745;
+        }
+
+    .hamburger-btn {
+        border: none;
+        background-color: #007bff;
+        color: white;
+        border-radius: 4px;
+        width: 50px;
+        height: 50px;
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 5px;
+    }
+
+        .hamburger-btn:hover {
+            background-color: #0056b3;
+        }
+
+    .hamburger-line {
+        width: 25px;
+        height: 3px;
+        background-color: white;
+        border-radius: 3px;
+    }
+
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: -250px;
+        width: 250px;
+        height: 100%;
+        background-color: #343a40;
+        z-index: 999;
+        transition: left 0.3s ease;
+        padding: 70px 15px 15px;
+        color: white;
+    }
+
+        .sidebar.active {
+            left: 0;
+        }
+
+    #filterOptions, #sortOptions {
+        display: none;
+        background-color: #e9ecef;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .option-btns {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    @@media (max-width: 767px) {
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .option-btns {
+            flex-direction: column;
+        }
+    }
+</style>
+
+<button class="hamburger-btn" onclick="toggleSidebar()">
+    <div class="hamburger-line"></div>
+    <div class="hamburger-line"></div>
+    <div class="hamburger-line"></div>
+</button>
+
+<div class="sidebar" id="sidebar">
+    <h5 class="mb-3">Employee Dashboard</h5>
+    <div class="list-group mb-4">
+        <a href="@Url.Action("Index")" class="list-group-item list-group-item-action">Home</a>
+        <button class="list-group-item list-group-item-action" onclick="toggleFilterOptions()">Filter Options</button>
+        <button class="list-group-item list-group-item-action" onclick="toggleSortOptions()">Sort Options</button>
+    </div>
+    <div class="mt-4">
+        <h6>Quick Stats</h6>
+        <p>Total Employees: @Model.Count()</p>
+        <p>Departments: @(ViewBag.Departments?.Count ?? 0)</p>
+    </div>
+</div>
+
+<div class="container my-4" style="padding-top: 50px;">
+    <h1 class="text-center mb-4 head-color">Employee List</h1>
+
+    <div class="option-btns">
+        <button class="btn btn-primary" onclick="toggleFilterOptions()">
+            <i class="fas fa-filter"></i> Filter
+        </button>
+        <button class="btn btn-secondary" onclick="toggleSortOptions()">
+            <i class="fas fa-sort"></i> Sort
+        </button>
+    </div>
+
+    <div id="filterOptions">
+        <h5 class="mb-3">Filter Employees</h5>
+        <form method="get" asp-controller="Home" asp-action="Index" class="row g-3">
+            <div class="col-md-6">
+                <label for="search" class="form-label">Employee Name</label>
+                <input type="text" id="search" name="search" value="@ViewBag.Search" class="form-control" placeholder="Enter name" />
+            </div>
+            <div class="col-md-6">
+                <label for="filterDept" class="form-label">Department</label>
+                <select id="filterDept" name="filterDept" class="form-select">
+                    <option value="">Select Departments</option>
+                    @foreach (var dept in (ViewBag.Departments as List<string>)!)
+                    {
+                        var selected = (ViewBag.FilterDept == dept) ? "selected" : "";
+                        <option value="@dept" selected="@selected">@dept</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 mt-3">
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                <a href="@Url.Action("Index")" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <div id="sortOptions">
+        <h5 class="mb-3">Sort Options</h5>
+        <div class="d-flex flex-wrap">
+            <a class="btn btn-sort @(ViewBag.SortColumn == "Name" && ViewBag.SortOrder == "asc" ? "active" : "")"
+               href="@Url.Action("Index", new { sortColumn = "Name", sortOrder = "asc", search = ViewBag.Search, filterDept = ViewBag.FilterDept, page = ViewBag.Page })">
+                Name (A-Z)
+            </a>
+            <a class="btn btn-sort @(ViewBag.SortColumn == "Name" && ViewBag.SortOrder == "desc" ? "active" : "")"
+               href="@Url.Action("Index", new { sortColumn = "Name", sortOrder = "desc", search = ViewBag.Search, filterDept = ViewBag.FilterDept, page = ViewBag.Page })">
+                Name (Z-A)
+            </a>
+            <a class="btn btn-sort @(ViewBag.SortColumn == "Salary" && ViewBag.SortOrder == "asc" ? "active" : "")"
+               href="@Url.Action("Index", new { sortColumn = "Salary", sortOrder = "asc", search = ViewBag.Search, filterDept = ViewBag.FilterDept, page = ViewBag.Page })">
+                Salary (Low-High)
+            </a>
+            <a class="btn btn-sort @(ViewBag.SortColumn == "Salary" && ViewBag.SortOrder == "desc" ? "active" : "")"
+               href="@Url.Action("Index", new { sortColumn = "Salary", sortOrder = "desc", search = ViewBag.Search, filterDept = ViewBag.FilterDept, page = ViewBag.Page })">
+                Salary (High-Low)
+            </a>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table id="employeeTable" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Salary</th>
+                    <th>Joining Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var emp in Model)
+                {
+                    <tr>
+                        <td>@emp.Name</td>
+                        <td>@emp.Department</td>
+                        <td>@emp.Salary</td>
+                        <td>@emp.JoiningDate.ToString("yyyy-MM-dd")</td>
+                        <td>
+                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                    onclick="showDetails('@emp.Name', '@emp.Department', '@emp.Salary', '@emp.JoiningDate.ToString("yyyy-MM-dd")')"
+                                    data-bs-toggle="modal" data-bs-target="#employeeModal">
+                                View
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (ViewBag.TotalPages != null && ViewBag.TotalPages > 1)
+    {
+        <nav aria-label="Page navigation" class="mt-3">
+            <ul class="pagination justify-content-center">
+                @for (int i = 1; i <= (int)ViewBag.TotalPages; i++)
+                {
+                    if (i == ViewBag.Page)
+                    {
+                        <li class="page-item active">
+                            <span class="page-link">@i</span>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-action="Index"
+                               asp-route-page="@i"
+                               asp-route-search="@ViewBag.Search"
+                               asp-route-filterDept="@ViewBag.FilterDept"
+                               asp-route-sortColumn="@ViewBag.SortColumn"
+                               asp-route-sortOrder="@ViewBag.SortOrder">@i</a>
+                        </li>
+                    }
+                }
+            </ul>
+        </nav>
+    }
+</div>
+
+<div class="modal fade" id="employeeModal" tabindex="-1" aria-labelledby="employeeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="employeeModalLabel">Employee Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-bordered">
+                    <tbody>
+                        <tr><th>Name</th><td id="empName"></td></tr>
+                        <tr><th>Department</th><td id="empDept"></td></tr>
+                        <tr><th>Salary</th><td id="empSalary"></td></tr>
+                        <tr><th>Joining Date</th><td id="empJoinDate"></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JS Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        $('#employeeTable').DataTable({
+            paging: true,
+            searching: true,
+            ordering: false,
+            info: false,
+            pageLength: 4,
+            lengthChange: false,
+            language: {
+                search: "Search employees:",
+                emptyTable: "No employees found."
+            }
+        });
+    });
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('active');
+    }
+
+    function showDetails(name, department, salary, joinDate) {
+        document.getElementById('empName').innerText = name;
+        document.getElementById('empDept').innerText = department;
+        document.getElementById('empSalary').innerText = salary;
+        document.getElementById('empJoinDate').innerText = joinDate;
+    }
+
+    function toggleFilterOptions() {
+        const filterOptions = document.getElementById('filterOptions');
+        const sortOptions = document.getElementById('sortOptions');
+        filterOptions.style.display = (filterOptions.style.display === 'block') ? 'none' : 'block';
+        sortOptions.style.display = 'none';
+        document.getElementById('sidebar').classList.remove('active');
+    }
+
+    function toggleSortOptions() {
+        const filterOptions = document.getElementById('filterOptions');
+        const sortOptions = document.getElementById('sortOptions');
+        sortOptions.style.display = (sortOptions.style.display === 'block') ? 'none' : 'block';
+        filterOptions.style.display = 'none';
+        document.getElementById('sidebar').classList.remove('active');
+    }
+
+    document.addEventListener('click', function (event) {
+        const sidebar = document.getElementById('sidebar');
+        const hamburgerBtn = document.querySelector('.hamburger-btn');
+        if (!sidebar.contains(event.target) && !hamburgerBtn.contains(event.target) && sidebar.classList.contains('active')) {
+            sidebar.classList.remove('active');
+        }
+    });
+</script>
